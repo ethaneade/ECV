@@ -38,6 +38,9 @@ using namespace latl;
 
 namespace ecv {
 
+    // Find the rigid transformation that maps x to y,
+    // assuming that such a transformation exists.
+    
     template <class Scalar>
     void absolute_pose(const Vector<3,Scalar> x[3],
                        const Vector<3,Scalar> y[3],
@@ -65,6 +68,8 @@ namespace ecv {
         pose.translation() = third * (sumy - pose.rotation() * sumx);
     }
 
+    // Three point pose problem, a la Fischer and Bolles, 1981.
+    
     int p3p(const Vector<3> x[3], const Vector<2> z[3],
             SE3<> poses[])
     {
@@ -76,16 +81,21 @@ namespace ecv {
         for (int i=0; i<3; ++i)
             unit_z[i] = unit(unproject(z[i]));
 
+        // Compute cosines of inter-ray angles
         double c01 = unit_z[0] * unit_z[1];
         double c02 = unit_z[0] * unit_z[2];
         double c12 = unit_z[1] * unit_z[2];
 
+        // Roughly cos(0.5 degrees)
         const double cos_min_theta = 0.99996;
+
+        // Check for collinear points
         if (c01 > cos_min_theta ||
             c02 > cos_min_theta ||
             c12 > cos_min_theta)
             return -1;
 
+        // Construct the quartic coefficients
         double K1 = L12 / L02;
         double K2 = L12 / L01;
 
