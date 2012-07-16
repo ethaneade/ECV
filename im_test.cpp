@@ -30,31 +30,30 @@
 // documentation are those of the authors and should not be
 // interpreted as representing official policies, either expressed or
 // implied, of Ethan Eade.
-#ifndef ECV_GAUSSIAN_YVV_HPP
-#define ECV_GAUSSIAN_YVV_HPP
-
 #include <ecv/image.hpp>
+#include <ecv/io_pgm.hpp>
+#include <ecv/convert.hpp>
+#include <fstream>
+#include <stdint.h>
+using namespace ecv;
+using namespace std;
 
-namespace ecv {
-    
-    struct YvV_Params
+int main()
+{
+    Image<uint8_t> im;
+    {        
+        ifstream in("out.pgm");
+        pgm_read(in, im);
+    }
+
+    Image<uint16_t> im2 = convert<uint16_t>(im);
+
     {
-        double sigma;
-        float b0, b1, b2;
-        float alpha;
-        float m[9];
+        ofstream out("out16.pgm");
+        pgm_write(im2, out);
+    }
 
-        void init(double sigma);
-    };
-
-    void yvv_blur_horizontal_ref(Image<float>& im, const YvV_Params& yvv);
-    void yvv_blur_vertical_ref(Image<float>& im, const YvV_Params& yvv);
-
-    void yvv_blur_horizontal(Image<float>& im, const YvV_Params& yvv);
-    void yvv_blur_vertical(Image<float>& im, const YvV_Params& yvv);
+    Image<float> imf = convert<float>(im);
     
-    void yvv_blur(Image<float>& im, const YvV_Params& yvv);
-    void yvv_blur(Image<float>& im, double sigma);
+    return 0;
 }
-
-#endif

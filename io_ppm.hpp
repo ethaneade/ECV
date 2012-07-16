@@ -71,7 +71,7 @@ namespace ecv {
             }
             double factor = 255.0 / header.maxval;
             if (header.maxval > 255) {
-                std::vector<uint16_t> rowbuf(im.width()*3);
+                uint16_t *rowbuf = new uint16_t[im.width()*3];
                 for (int i=0; i<im.height(); ++i) {
                     in.read((char*)&rowbuf[0], im.width()*6);
                     if (in.gcount() != im.width()*6)
@@ -79,7 +79,8 @@ namespace ecv {
                     uint8_t *imi = (uint8_t*)im[i];
                     for (int j=0; j<im.width()*3; ++j)
                         imi[j] = (uint8_t)(rowbuf[j] * factor + 0.5);
-                }                
+                }
+                delete[] rowbuf;
             } else {
                 for (int i=0; i<im.height(); ++i) {
                     in.read((char*)im[i], im.width()*3);

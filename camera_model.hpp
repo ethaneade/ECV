@@ -48,6 +48,9 @@ namespace ecv {
         virtual latl::Vector<-1,float> get_params() const = 0;
         virtual void set_params(const latl::Vector<-1,float>& p) = 0;
         virtual void update_params(const latl::Vector<-1,float>& dp) = 0;
+
+        virtual bool can_project(const latl::Vector<3,float> &xyz) const = 0;
+
         
         latl::Vector<2,float> project(const latl::Vector<2,float>& xy) const
         {

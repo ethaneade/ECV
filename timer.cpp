@@ -65,6 +65,7 @@
 
 #include <ecv/timer.hpp>
 
+#define USE_GETTIMEOFDAY 1
 #if USE_GETTIMEOFDAY
 #include <sys/time.h>
 #endif
@@ -76,8 +77,7 @@ ecv::Timer::Timer()
     reset();
 }
 
-static
-double sample_time()
+double get_current_time()
 {
 #if USE_GETTIMEOFDAY
     struct timeval tv;
@@ -92,7 +92,7 @@ double sample_time()
 
 double ecv::Timer::reset()
 {
-    double now = sample_time();
+    double now = get_current_time();
     double t = now - t0;
     t0 = now;
     return t;
@@ -100,14 +100,5 @@ double ecv::Timer::reset()
 
 double ecv::Timer::get_time() const
 {
-    return sample_time() - t0;
+    return get_current_time() - t0;
 }
-
-void ecv::sleep(double seconds)
-{
-    struct timespec ts;
-    ts.tv_sec = (int)seconds;
-    ts.tv_nsec = (seconds - ts.tv_sec) * 1e9;
-    nanosleep(&ts, 0);
-}
-

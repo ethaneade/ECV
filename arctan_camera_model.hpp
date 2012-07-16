@@ -50,6 +50,7 @@ namespace ecv {
         latl::Vector<-1,float> get_params() const;
         void set_params(const latl::Vector<-1,float>& p);        
         void update_params(const latl::Vector<-1,float>& dp);
+        bool can_project(const latl::Vector<3,float> &xyz) const;
                 
     protected:
         latl::Vector<2,float> project(const latl::Vector<2,float>& xy,
@@ -64,6 +65,37 @@ namespace ecv {
         latl::Vector<2,float> focal, inv_focal;
         latl::Vector<2,float> uv0;
         float radial;
+    };
+
+    class ArctanCTCameraModel : public CameraModel
+    {
+    public:
+        ArctanCTCameraModel();
+
+        enum { NUM_PARAMS = 9 };
+        
+        const char* name() const { return "arctanct"; }
+        int num_params() const { return NUM_PARAMS; }
+        
+        latl::Vector<-1,float> get_params() const;
+        void set_params(const latl::Vector<-1,float>& p);        
+        void update_params(const latl::Vector<-1,float>& dp);
+        bool can_project(const latl::Vector<3,float> &xyz) const;
+                
+    protected:
+        latl::Vector<2,float> project(const latl::Vector<2,float>& xy,
+                                      latl::Matrix<2,2,float>* J_xy,
+                                      latl::Matrix<2,-1,float>* J_model) const;
+        
+        latl::Vector<2,float> unproject(const latl::Vector<2,float>& uv,
+                                        latl::Matrix<2,2,float>* J_uv) const;
+
+        void update_internal();
+
+        latl::Vector<2,float> focal, inv_focal;
+        latl::Vector<2,float> uv0;
+        float radial, inv_radial;
+        latl::Vector<2,float> tangential, cr;        
     };
     
 }

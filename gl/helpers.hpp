@@ -205,6 +205,21 @@ namespace ecv {
             glEnd();
         }
 
+        template <class T>
+        inline void glDrawImageAsTexture(const Image<T>& im,
+                                         double x, double y, double w, double h)
+        {
+            static GLTexture tex;
+            tex.bind();
+            tex.load(im);
+            glTexturedBox(x, y, w, h);
+        }
+
+        template <class T>
+        inline void glDrawImageAsTexture(const Image<T>& im)
+        {
+            glDrawImageAsTexture(im, 0, 0, im.width(), im.height());
+        }
 
         template <class V>
         void glVertex(const latl::AbstractVector<V>& v)
@@ -298,10 +313,27 @@ namespace ecv {
         inline
         void glCircle(double x, double y, double r, int segs=20)
         {
-            GLPushMatrix pm;
-            glTranslated(x,y,0);
-            glScaled(r,r,1);
-            glUnitCircle(segs);        
+            static const int MAX_DL_SEGS = 40;
+            static int display_list[MAX_DL_SEGS+1] = {0};
+
+            if (segs <= MAX_DL_SEGS) {
+                int &dl = display_list[segs];
+                if (dl == 0) {
+                    dl = glGenLists(1) + 1;
+                    glNewList(dl-1, GL_COMPILE);
+                    glUnitCircle(segs);
+                    glEndList();                    
+                }
+                GLPushMatrix pm;
+                glTranslated(x,y,0);
+                glScaled(r,r,1);
+                glCallList(dl-1);
+            } else {
+                GLPushMatrix pm;
+                glTranslated(x,y,0);
+                glScaled(r,r,1);
+                glUnitCircle(segs);
+            }
         }
 
         template <class V, class Mat>

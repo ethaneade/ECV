@@ -31,8 +31,10 @@
 // interpreted as representing official policies, either expressed or
 // implied, of Ethan Eade.
 #include <ecv/scale_space.hpp>
+#include <ecv/convolution.hpp>
 #include <ecv/gaussian_yvv.hpp>
 #include <ecv/subsample.hpp>
+#include <ecv/resample.hpp>
 #include <latl/ldlt.hpp>
 #include <cmath>
 #include <cassert>
@@ -121,6 +123,110 @@ void ecv::scale_space::PyramidBuilder::compute(const Image<float>& im,
         subsample_three_fourths(smooth, pyr.level[i]);
     }
 }
+
+struct ecv::scale_space::PyramidBuilder_8bit::State
+{
+    double dscale;
+    double inv_dscale;
+    double sigma;
+
+    BicubicScaler scaler;
+
+    double sigma0;
+    int taps0;
+    int kernel0[4];
+
+    double sigma1;
+    int taps1;
+    int kernel1[4];
+
+    void init(int max_dim, double scale_factor, double s0, double as0)
+    {
+        dscale = scale_factor;
+        inv_dscale = 1.0 / dscale;
+        scaler.init(max_dim, inv_dscale);
+        sigma = s0;
+
+        sigma0 = sqrt(s0*s0 - as0*as0);    
+        sigma1 = sigma*sqrt(dscale*dscale - 1.0);
+
+        taps0 = sigma0 == 0.0 ? 0
+            : (sigma0 < 0.7 ? 3
+               : (sigma0 < 1.05 ? 5
+                  : 7));
+        
+        taps1 = sigma1 == 0.0 ? 0
+            : (sigma1 < 0.7 ? 3
+               : (sigma1 < 1.05 ? 5
+                  : 7));
+
+        if (taps0)
+            compute_gaussian_kernel(sigma0, taps0/2+1, 1<<12, kernel0, GaussianKernel::SAMPLED_PDF);
+        
+        if (taps1)
+            compute_gaussian_kernel(sigma1, taps1/2+1, 1<<12, kernel1, GaussianKernel::SAMPLED_PDF);
+    }
+};
+
+ecv::scale_space::PyramidBuilder_8bit::PyramidBuilder_8bit()
+{
+    state = new State();
+}
+
+ecv::scale_space::PyramidBuilder_8bit::~PyramidBuilder_8bit()
+{
+    delete state;
+}
+
+void ecv::scale_space::PyramidBuilder_8bit::init(int max_dim,
+                                                 double scale_factor,
+                                                 double level0_sigma,
+                                                 double assumed_sigma)
+{
+    state->init(max_dim, scale_factor, level0_sigma, assumed_sigma);
+}
+
+void ecv::scale_space::PyramidBuilder_8bit::compute(const Image<uint8_t> &im,
+                                                    std::vector<Image<uint8_t> > &pyr,
+                                                    int min_dim) const
+{
+    int num_levels = 0;
+    int s = im.width() < im.height() ? im.width () : im.height();
+    while (s >= min_dim) {
+        ++num_levels;
+        s = (int)(s*state->inv_dscale);
+    }
+
+    pyr.resize(num_levels);
+    if (num_levels == 0)
+        return;
+
+    switch (state->taps0) {
+    case 0: pyr[0] = im.copy(); break;
+    case 3: convolve_symmetric_3tap_12bit(im, state->kernel0, pyr[0]); break;
+    case 5: convolve_symmetric_5tap_12bit(im, state->kernel0, pyr[0]); break;
+    case 7: convolve_symmetric_7tap_12bit(im, state->kernel0, pyr[0]); break;
+    }
+    
+    for (int i=1; i<num_levels; ++i) {
+        Image<uint8_t> smooth;
+        switch (state->taps1) {
+        case 0: smooth = pyr[i-1].copy(); break;
+        case 3: convolve_symmetric_3tap_12bit(pyr[i-1], state->kernel1, smooth); break;
+        case 5: convolve_symmetric_5tap_12bit(pyr[i-1], state->kernel1, smooth); break;
+        case 7: convolve_symmetric_7tap_12bit(pyr[i-1], state->kernel1, smooth); break;
+        }
+
+        if (state->dscale == 1.5)
+            subsample_two_thirds_bicubic(smooth, pyr[i]);
+        else if (state->dscale == 1.25)
+            subsample_four_fifths_bicubic(smooth, pyr[i]);
+        else
+            bicubic_scale(smooth, state->scaler, pyr[i]);
+    }
+}
+
+
 
 template <class T> static
 void sample_3x3(const Image<T>& im, float x, float y, float win[3*3])

@@ -35,6 +35,7 @@
 
 #include <ecv/image.hpp>
 #include <vector>
+#include <stdint.h>
 
 namespace ecv {
 
@@ -77,6 +78,24 @@ namespace ecv {
         void find_extrema(const Pyramid<float>& pyr, float thresh,                          
                           std::vector<Point>& extrema);
 
+
+
+
+        struct PyramidBuilder_8bit
+        {
+            PyramidBuilder_8bit();
+            ~PyramidBuilder_8bit();
+
+            void init(int max_dim,
+                      double scale_factor,
+                      double level0_sigma,
+                      double assumed_sigma);
+            void compute(const Image<uint8_t> &im,
+                         std::vector<Image<uint8_t> > &pyr,
+                         int min_dim = 20) const;
+            struct State;
+            State *state;
+        };
         
     }
 }

@@ -43,6 +43,7 @@ namespace ecv {
         double t0;
     };
 
+    double get_current_time();
     void sleep(double seconds);
 }
 

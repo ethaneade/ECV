@@ -30,6 +30,7 @@
 // documentation are those of the authors and should not be
 // interpreted as representing official policies, either expressed or
 // implied, of Ethan Eade.
+
 #ifndef ECV_EPIPOLAR_HPP
 #define ECV_EPIPOLAR_HPP
 

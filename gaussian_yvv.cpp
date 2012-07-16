@@ -31,6 +31,7 @@
 // interpreted as representing official policies, either expressed or
 // implied, of Ethan Eade.
 #include <ecv/gaussian_yvv.hpp>
+#include <arch/yvv.hpp>
 #include <latl/ldlt.hpp>
 #include <vector>
 
@@ -193,7 +194,17 @@ void yvv_flip(const YvV_Params& p, float uplus, float u[3], float v[3])
     v[2] = p.m[6]*u0 + p.m[7]*u1 + p.m[8]*u2 + uplus;
 }
 
+
 void ecv::yvv_blur_horizontal(Image<float>& im, const YvV_Params& yvv)
+{
+#if ECV_ARCH_HAS_YVV_BLUR_HORIZONTAL
+    arch::yvv_blur_horizontal(im, yvv);
+#else
+    yvv_blur_horizontal_ref(im, yvv);
+#endif
+}
+
+void ecv::yvv_blur_horizontal_ref(Image<float>& im, const YvV_Params& yvv)
 {
     for (int i=0; i+1<im.height(); i+=2) {
         float* p = im[i];
@@ -272,6 +283,15 @@ void ecv::yvv_blur_horizontal(Image<float>& im, const YvV_Params& yvv)
 
 void ecv::yvv_blur_vertical(Image<float>& im, const YvV_Params& yvv)
 {
+#if ECV_ARCH_HAS_YVV_BLUR_VERTICAL
+    arch::yvv_blur_vertical(im, yvv);
+#else
+    yvv_blur_vertical_ref(im, yvv)
+#endif
+}
+
+void ecv::yvv_blur_vertical_ref(Image<float>& im, const YvV_Params& yvv)
+{
     {
         const float* p0 = im[0];
         float* p1 = im[1];
@@ -318,96 +338,6 @@ void ecv::yvv_blur_vertical(Image<float>& im, const YvV_Params& yvv)
     }
 }
 
-#if 0
-
-#include <xmmintrin.h>
-
-void blur_vertical_sse(Image<float>& im, const YvV_Params& yvv)
-{
-
-    const __m128 aaaa = _mm_set1_ps(yvv.alpha);
-    const __m128 bbb0 = _mm_set1_ps(yvv.b0);
-    const __m128 bbb1 = _mm_set1_ps(yvv.b1);
-    const __m128 bbb2 = _mm_set1_ps(yvv.b2);
-
-    const int s = im.stride();
-    const int s4 = s/4;
-    const int w4 = im.width()/4;
-    {
-        __m128* pppp0 = (__m128*)im[0];
-        __m128* pppp1 = pppp0 + s4;
-        __m128* pppp2 = pppp1 + s4;
-        for (int j=0; j<w4; ++j) {
-            pppp1[j] = aaaa*pppp1[j] + (bbb0 + bbb1 + bbb2)*pppp0[j];
-            pppp2[j] = aaaa*pppp2[j] + bbb0*pppp1[j] + (bbb1 + bbb2)*pppp0[j];
-        }
-        const float *p0 = im[0];
-        float *p1 = im[1];
-        float *p2 = im[2];
-        for (int j=w4*4; j<im.width(); ++j) {
-            p1[j] = yvv.alpha*p1[j] + (yvv.b0 + yvv.b1 + yvv.b2)*p0[j];
-            p2[j] = yvv.alpha*p2[j] + yvv.b0*p1[j] + (yvv.b1 + yvv.b2)*p0[j];
-        }
-    }
-
-    vector<float> uplus(im[im.height()-1], im[im.height()-1] + im.width());
-    
-    for (int i=3; i<im.height(); ++i) {
-        __m128* pppp = (__m128*)im[i];
-        const __m128* pppp2 = (__m128*)im[i-2];
-
-        for (int j=0; j<w4; ++j) {
-            pppp[j] = aaaa*pppp[j] + bbb0*pppp[j-s4] + bbb1*pppp2[j] + bbb2*pppp2[j-s4];
-        }
-        float *p = im[i];
-        const float *p2 = p - 2*s;
-        for (int j=w4*4; j<im.width(); ++j) {
-            p[j] = yvv.alpha*p[j] + yvv.b0*p[j-s] + yvv.b1*p2[j] + yvv.b2*p2[j-s];
-        }
-    }
-
-
-    {
-        float *p = im[im.height()-1];
-        float *p2 = p - 2*s;
-        for (int j=0; j<im.width(); ++j) {
-            float u[3] = {p[j], p[j-s], p2[j]};
-            float v[3];
-            yvv_flip(yvv, uplus[j], u, v);
-            p[  j] = v[0];
-            p[j-s] = yvv.alpha*p[j-s] + yvv.b0*v[0] + yvv.b1*v[1] + yvv.b2*v[2];
-            p2[ j] = yvv.alpha*p2[ j] + yvv.b0*p[j-s] + yvv.b1*v[0] + yvv.b2*v[1];
-        }
-    }
-
-    for (int i=im.height()-4; i>=0; --i) {
-        __m128* pppp = (__m128*)im[i];
-        const __m128* pppp2 = (__m128*)im[i+2];
-        
-        for (int j=0; j<w4; ++j) {
-            pppp[j] = aaaa*pppp[j] + bbb0*pppp[j+s4] + bbb1*pppp2[j] + bbb2*pppp2[j+s4];
-        }
-        float *p = im[i];
-        const float *p2 = p + s*2;
-        for (int j=w4*4; j<im.width(); ++j) {
-            p[j] = yvv.alpha*p[j] + yvv.b0*p[j+s] + yvv.b1*p2[j] + yvv.b2*p2[j+s];
-        }
-    }
-}
-
-#define TRANSPOSE(a,b,c,d) \
-    {                                           \
-    __m128 t = _mm_unpackhi_ps(c, d);           \
-    c = _mm_unpacklo_ps(c, d);                  \
-    d = _mm_unpackhi_ps(a, b);                  \
-    a = _mm_unpacklo_ps(a, b);                  \
-    b = (__m128)_mm_unpackhi_pd((__m128d)a, (__m128d)c);          \
-    a = (__m128)_mm_unpacklo_pd((__m128d)a, (__m128d)c);          \
-    c = (__m128)_mm_unpacklo_pd((__m128d)d, (__m128d)t);                  \
-    d = (__m128)_mm_unpackhi_pd((__m128d)d, (__m128d)t);                  \
-    }
-
-#endif
 
 void ecv::yvv_blur(Image<float>& im, const YvV_Params& yvv)
 {

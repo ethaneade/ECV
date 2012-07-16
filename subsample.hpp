@@ -130,6 +130,11 @@ namespace ecv {
         subsample_three_fourths_horizontal(im, tmp);
         subsample_three_fourths_vertical(tmp, smaller);
     }
+
+
+    void subsample_two_thirds_bicubic(const Image<uint8_t>& im, Image<uint8_t> &smaller);
+    void subsample_four_fifths_bicubic(const Image<uint8_t>& im, Image<uint8_t> &smaller);
+
     
 }
 

@@ -76,7 +76,13 @@ void ecv::ArctanCameraModel::update_params(const Vector<-1,float>& dp)
     radial *= latl::exp(dp[4]);
     update_internal();
 }
-                
+
+
+bool ecv::ArctanCameraModel::can_project(const latl::Vector<3,float> &xyz) const
+{
+    return true;
+}
+
 static const float third = 1.0f/3;
 static const float fifth = 0.2f;    
 
@@ -155,6 +161,161 @@ Vector<2,float> ecv::ArctanCameraModel::unproject(const Vector<2,float>& uv,
     }
     
     return d * invD;
+}
+
+ecv::ArctanCTCameraModel::ArctanCTCameraModel()
+{
+    fill(uv0, 0.5f);
+    fill(focal, 1.0f);
+    radial = 1.0f;
+    zero(tangential);
+    zero(cr);
+    update_internal();
+}
+        
+Vector<-1,float> ecv::ArctanCTCameraModel::get_params() const
+{
+    Vector<-1,float> p(9);
+    slice<0,2>(p) = uv0;
+    slice<2,2>(p) = focal;
+    p[4] = radial;
+    slice<5,2>(p) = tangential;
+    slice<7,2>(p) = cr;
+    return p;
+}
+
+void ecv::ArctanCTCameraModel::update_internal()
+{
+    inv_focal[0] = 1/focal[0];
+    inv_focal[1] = 1/focal[1];
+    inv_radial = 1/radial;
+}
+
+void ecv::ArctanCTCameraModel::set_params(const Vector<-1,float>& p)
+{
+    assert(p.size() == 9);
+    uv0 = slice<0,2>(p);
+    focal = slice<2,2>(p);
+    radial = p[4];
+    tangential = slice<5,2>(p);
+    cr = slice<7,2>(p);
+    update_internal();
+}
+
+
+void ecv::ArctanCTCameraModel::update_params(const Vector<-1,float>& dp)
+{
+    assert(dp.size() == 9);
+    uv0 += slice<0,2>(dp);
+    focal += slice<2,2>(dp);
+    radial *= latl::exp(dp[4]);
+    tangential += slice<5,2>(dp);
+    cr += slice<7,2>(dp);
+    
+    update_internal();
+}
+
+
+bool ecv::ArctanCTCameraModel::can_project(const latl::Vector<3,float> &xyz) const
+{
+    return true;
+}
+
+Vector<2,float> ecv::ArctanCTCameraModel::project(const Vector<2,float>& xy,
+                                                Matrix<2,2,float>* J_xy,
+                                                Matrix<2,-1,float>* J_model) const
+{
+    const Vector<2,float> d = xy - cr;
+    float R = norm_sq(d);
+    float Asq = R * inv_radial * inv_radial;
+    float c, dD;
+    float A_factor;
+    if (Asq < Constants<float>::sqrt_epsilon()) {
+        c = 1.f - Asq*(third - Asq*fifth);
+        dD = 0.f;
+        A_factor = 1.f;
+    } else {            
+        float r = latl::sqrt(R);
+        float A = r * inv_radial;
+        float inv_r = 1.f/r;
+        float inv_A = radial * inv_r;
+        float inv_R = inv_r * inv_r;
+        A_factor = 1.f/(1.f+Asq);
+        c = latl::atan(A) * inv_A;
+        dD = (A_factor - c) * inv_R;
+    }
+
+    float D = c + 2 * (d * tangential);
+    Vector<2,float> e = D * d + R * tangential + cr;
+    const Vector<2,float> uv = diagmult(focal, e) + uv0;
+
+    Matrix<2,2,float> Jxy;
+    if (J_xy || J_model) {
+        float offdiag = 2 * (d[0] * tangential[1] + d[1] * tangential[0]) + dD * d[0] * d[1];
+        Jxy(0,0) = focal[0] * (D + d[0] * (4 * tangential[0] + dD * d[0]));
+        Jxy(0,1) = focal[0] * offdiag;
+        Jxy(1,0) = focal[1] * offdiag;        
+        Jxy(1,1) = focal[1] * (D + d[1] * (4 * tangential[1] + dD * d[1]));
+
+        if (J_xy)
+            *J_xy = Jxy;
+    }
+    
+
+    if (J_model) {
+        Matrix<2,-1,float> &J_cm = *J_model;
+        zero(J_cm);
+        const Vector<2,float> f_d = diagmult(focal, d);
+        slice<0,7,2,2>(J_cm) = -Jxy;
+        J_cm(0,7) += focal[0];
+        J_cm(1,8) += focal[1];
+        
+        J_cm(0,0) = J_cm(1,1) = 1.f;
+        J_cm(0,2) = e[0];
+        J_cm(1,3) = e[1];
+    
+        J_cm.T()[4] = (c - A_factor) * f_d;
+        
+        float off_diag = 2*d[0]*d[1];
+        J_cm(0,5) = focal[0] * (2*d[0]*d[0] + R);
+        J_cm(0,6) = focal[0] * off_diag;
+        J_cm(1,5) = focal[1] * off_diag;
+        J_cm(1,6) = focal[1] * (2*d[1]*d[1] + R);
+    }
+    return uv;
+}
+        
+Vector<2,float> ecv::ArctanCTCameraModel::unproject(const Vector<2,float>& uv,
+                                                  Matrix<2,2,float>* J_uv) const
+{    
+    Vector<2,float> e = diagmult(inv_focal, uv - uv0) - cr;
+    
+    // Guess for tangential distortion
+    Vector<2,float> d = e - norm_sq(e) * tangential;
+
+    float r = latl::sqrt(norm_sq(d));
+    float A = radial * r;
+    float invD;
+    if (A < Constants<float>::sqrt_epsilon()) {
+        float Asq = A*A;
+        invD = 1 + Asq*third*(1 - Asq*2*fifth);
+    } else {
+        float invA = 1 / A;
+        invD = latl::tan(A) * invA;
+    }
+
+    Vector<2,float> xy = d*invD + cr;
+    Matrix<2,2,float> J;
+    for (int i=0; i<4; ++i) {
+        Vector<2,float> v = uv - CameraModel::project(xy, J);
+        J = inverse(J);
+        xy += J * v;
+    }
+
+    if (J_uv) {
+        *J_uv = J;
+    }
+    return xy;
 }
 
 
