@@ -93,6 +93,7 @@ namespace ecv {
                         return 1;
                     break;
                     
+                case FL_DRAG:
                 case FL_MOVE:
                     if (handler->on_mouse_move(*owner, state, x, y))
                         return 1;
@@ -106,6 +107,7 @@ namespace ecv {
                 case FL_KEYDOWN:                  
                     if (handler->on_key_down(*owner, Fl::event_key()))
                         return 1;
+                    handler->on_text(*owner, Fl::event_text(), Fl::event_length());
                     break;
                     
                 case FL_KEYUP:

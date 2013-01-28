@@ -49,6 +49,7 @@ namespace ecv {
             struct EventHandler {
                 virtual ~EventHandler() {}
                 virtual bool on_key_down(Window& win, int key) { return false; }
+                virtual void on_text(Window& win, const char *text, int len) {}
                 virtual bool on_key_up(Window& win, int key) { return false; }
                 virtual bool on_button_down(Window& win, int btn, int state, int x, int y) { return false; }
                 virtual bool on_button_up(Window& win, int btn, int state, int x, int y) { return false; }
@@ -59,7 +60,7 @@ namespace ecv {
 
 
             Window(int w, int h, const char* title);
-            ~Window();
+            virtual ~Window();
             
             int width() const;
             int height() const;
