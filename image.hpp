@@ -75,11 +75,18 @@ namespace ecv {
             T *data;
             Buffer *buffer;
             int stride;
+
+            Block() {
+                data = 0;
+                buffer = 0;
+                stride = 0;
+            }
            
             void release() {
                 if (buffer && --buffer->ref_count == 0) {
                     delete[] buffer->data;
                     delete buffer;
+                    buffer = 0;
                 }
             }
         };
@@ -112,11 +119,7 @@ namespace ecv {
         }
 
     public:
-        Image() {
-            _block.data = 0;
-            _block.stride = 0;
-            _block.buffer = 0;
-        }
+        Image() {}
         
         Image(int w, int h, int align=16)
         {
@@ -151,7 +154,6 @@ namespace ecv {
 
         Image(const Image& other)
         {
-            _block.buffer = 0;
             *this = other;
         }
         
@@ -221,7 +223,7 @@ namespace ecv {
             {
                 Block tmp = _block;
                 _block = im._block;
-                im.buf = tmp;
+                im._block = tmp;
             }
             {
                 ImageSize tmp = _size;
