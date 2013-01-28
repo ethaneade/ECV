@@ -23,6 +23,7 @@ OBJS= gaussian_yvv.o \
       arctan_camera_model.o \
       rational_polynomial_camera_model.o \
       gl/window_fltk.o \
+      gl/text.o \
       gl/helpers.o
 
 TARGET_OBJS=$(addprefix archs/$(ARCH)/, $(OBJS))
