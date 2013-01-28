@@ -32,7 +32,7 @@ namespace ecv {
     {
         float k;
     public:
-        HuberCost(float k_) : k(k_){}
+        HuberCost(float k_=1.21f) : k(k_){}
 
         float weight(float err_sq) const {
             return err_sq < k*k ? 1.f : k / sqrtf(err_sq);
@@ -47,7 +47,7 @@ namespace ecv {
     {
         float inv_c_sq;
     public:
-        TukeyCost(float c=4.7f) : inv_c_sq(1.f/(c*c)){}
+        TukeyCost(float c=4.681f) : inv_c_sq(1.f/(c*c)){}
 
         float weight(float err_sq) const {
             float y = std::max(0.f, 1.f - err_sq*inv_c_sq);
@@ -59,8 +59,6 @@ namespace ecv {
             return 1.f - y*y*y;
         }
     };
-
-
 
 }
 
