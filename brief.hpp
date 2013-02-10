@@ -55,7 +55,7 @@ unsigned int hamming_distance(const T a, const T b)
 template <int N>
 struct BRIEF_Descriptor
 {
-    enum {WORDS = (N+31)/32 };
+    enum {BITS=N, WORDS = (N+31)/32 };
 
     uint32_t x[WORDS];
 };
