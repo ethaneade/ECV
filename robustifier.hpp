@@ -13,6 +13,13 @@ namespace ecv {
         virtual float cost(float err_sq) const = 0;    
     };
 
+    class L2Cost : public CostFunction
+    {
+    public:
+        float weight(float err_sq) const { return 1.f; }
+        float cost(float err_sq) const { return err_sq; }
+    };
+    
     class CauchyCost : public CostFunction
     {
         float inv_c_sq;
