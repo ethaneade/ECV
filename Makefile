@@ -22,7 +22,6 @@ OBJS= gaussian_yvv.o \
       timer.o \
       arctan_camera_model.o \
       rational_polynomial_camera_model.o \
-      gl/window_fltk.o \
       gl/text.o \
       gl/helpers.o
 
