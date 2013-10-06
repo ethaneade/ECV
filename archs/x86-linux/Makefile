@@ -1,16 +1,13 @@
 include ../../common.mk
 
-CROSS=i686-w64-mingw32-
-CC=$(CROSS)gcc
-CXX=$(CROSS)g++
-AR=$(CROSS)ar
-LD=$(CROSS)ld
+CC=gcc
+CXX=g++
 
-
-ARCH_FLAGS= -msse -msse2
+ARCH_FLAGS= -march=native -pg
 ARCH_OBJS=arch/yvv.o \
 	  arch/sleep.o \
 	  arch/system.o
+
 OBJS += $(ARCH_OBJS)
 
 %.o: ../../%.cpp
